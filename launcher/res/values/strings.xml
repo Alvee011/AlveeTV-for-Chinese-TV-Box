@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AlveeTV</string>
+    <string name="guard_label">AlveeTV home button</string>
+    <string name="guard_description">Sends the HOME button to the AlveeTV home screen instead of the stock launcher\'s. It reads no screen content and has no tracking.</string>
+</resources>

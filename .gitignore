@@ -1,0 +1,15 @@
+# OS metadata
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Script backup directories
+backup/
+
+# Build artifacts & keystores
+launcher/build/
+*.keystore
+
+# Logs
+*.log

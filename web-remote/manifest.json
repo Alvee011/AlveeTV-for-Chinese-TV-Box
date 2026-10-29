@@ -1,0 +1,19 @@
+{
+  "name": "AlveeTV Remote",
+  "short_name": "AlveeTV",
+  "description": "Smart Web Remote Control for AlveeTV Box",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0d0e12",
+  "theme_color": "#0d0e12",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
+

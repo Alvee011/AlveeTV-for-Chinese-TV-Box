@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>AlveeTV Web Remote & Live Screen</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AlveeTV">
+  <meta name="theme-color" content="#0d0e12">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Mixed Content Warning Banner (Triggered when accessed via HTTPS/Vercel) -->
+  <div id="httpsWarning" class="https-banner hidden">
+    <div class="banner-content">
+      <span class="banner-icon">⚠️</span>
+      <div class="banner-text">
+        <strong>Mobile Local Network Restriction:</strong>
+        <p>Browsers block HTTPS from contacting local devices directly. For 0-latency and automatic connection on iPhone & Android, open your TV's built-in web address:</p>
+      </div>
+      <a id="localTvLink" href="#" class="banner-btn" target="_blank">Open TV Directly</a>
+      <button class="banner-close" onclick="dismissBanner()">&times;</button>
+    </div>
+  </div>
+
+  <div id="app" class="app-layout">
+    <!-- Top Navigation Bar -->
+    <header class="top-bar">
+      <div class="brand-zone">
+        <span class="brand-logo">AlveeTV</span>
+        <div class="status-badge" id="statusBadge" onclick="openSettingsModal()" title="Click to configure IP">
+          <span class="status-dot disconnected" id="statusDot"></span>
+          <span class="status-text" id="statusText">Connecting...</span>
+          <span class="latency" id="latencyBadge"></span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button class="screen-toggle-btn" id="btnLiveScreen" onclick="toggleLiveScreen()" title="Toggle Live Screen Stream">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect>
+            <polyline points="17 2 12 7 7 2"></polyline>
+          </svg>
+          <span id="screenToggleText">Live Screen</span>
+        </button>
+
+        <button class="icon-btn" onclick="openSettingsModal()" title="Network Settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Dual Dashboard (Desktop Side-by-Side, Mobile Stacked) -->
+    <div class="dashboard-body">
+      
+      <!-- LEFT / SCREEN MONITOR SECTION -->
+      <section class="screen-monitor-section" id="screenSection">
+        <div class="tv-bezel">
+          <div class="tv-header">
+            <div class="tv-brand">
+              <span class="power-led" id="tvPowerLed"></span>
+              <span>AlveeTV Display</span>
+            </div>
+            <div class="tv-badges">
+              <span class="badge" id="codecBadge">H.264 HW</span>
+              <span class="badge badge-fps" id="fpsBadge">0 FPS</span>
+              <button class="badge-btn" onclick="toggleFullscreen()" title="Fullscreen Screen">⛶</button>
+            </div>
+          </div>
+
+          <div class="canvas-container" id="canvasContainer">
+            <video id="liveVideo" autoplay playsinline muted></video>
+            <canvas id="liveCanvas" width="848" height="480" style="display:none;"></canvas>
+            
+            <!-- Touch / Click Target Layer -->
+            <div class="screen-overlay" id="screenOverlay" onclick="handleScreenTap(event)" title="Click to touch TV screen">
+              <div class="tap-ripple" id="tapRipple"></div>
+            </div>
+
+            <!-- Placeholder when stream is off -->
+            <div class="stream-placeholder" id="streamPlaceholder">
+              <div class="placeholder-content">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect>
+                  <polyline points="17 2 12 7 7 2"></polyline>
+                </svg>
+                <h3>Live Screen Preview</h3>
+                <p>Hardware-accelerated sub-50ms H.264 stream directly from your TV box.</p>
+                <button class="btn-start-stream" onclick="toggleLiveScreen()">Start Live Screen</button>
+                <small>Consumes &lt; 25 MB RAM and 4% CPU on TV</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="tv-footer-controls">
+            <span class="tv-hint">💡 Click or tap anywhere on the screen to touch your TV</span>
+            <div class="screen-actions">
+              <button class="footer-btn" onclick="restartStream()">Reconnect Stream</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Desktop Keyboard Shortcuts Helper -->
+        <div class="desktop-shortcuts desktop-only">
+          <span class="shortcuts-title">⌨️ Keyboard Shortcuts:</span>
+          <div class="shortcut-pills">
+            <span><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> Navigate</span>
+            <span><kbd>Enter</kbd> OK</span>
+            <span><kbd>Esc</kbd> / <kbd>Backspace</kbd> Back</span>
+            <span><kbd>H</kbd> Home</span>
+            <span><kbd>M</kbd> Menu</span>
+            <span><kbd>+</kbd> / <kbd>-</kbd> Volume</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT / REMOTE CONTROL CHASSIS -->
+      <section class="remote-section">
+        <!-- Mode Selector: D-Pad vs Trackpad -->
+        <div class="mode-tabs">
+          <button class="mode-tab active" id="tabDpad" onclick="setMode('dpad')">Remote D-Pad</button>
+          <button class="mode-tab" id="tabTrackpad" onclick="setMode('trackpad')">Mouse Trackpad</button>
+        </div>
+
+        <!-- MAIN REMOTE CHASSIS -->
+        <main class="remote-chassis" id="remoteView">
+          <!-- Row 1: Power Button -->
+          <div class="row power-row">
+            <button class="btn btn-power" onclick="sendKey('POWER')" title="Power (Toggle Sleep)">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M12 2v10M18.4 6.6a9 9 0 1 1-12.8 0" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Row 2: Menu and Home -->
+          <div class="row top-actions-row">
+            <button class="btn btn-round" onclick="sendKey('MENU')" title="Menu">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="4" y1="6" x2="20" y2="6" stroke-linecap="round"/>
+                <line x1="4" y1="12" x2="20" y2="12" stroke-linecap="round"/>
+                <line x1="4" y1="18" x2="20" y2="18" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button class="btn btn-round" onclick="sendKey('HOME')" title="Home">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 10l9-7 9 7v10a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1V10z" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Row 3: Purple D-Pad with Center OK -->
+          <div class="row dpad-row">
+            <div class="dpad-container">
+              <button class="dpad-btn dpad-up" onclick="sendKey('UP')" title="Up">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <path d="M18 15l-6-6-6 6" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <button class="dpad-btn dpad-left" onclick="sendKey('LEFT')" title="Left">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <button class="dpad-btn dpad-center" onclick="sendKey('OK')" title="OK">
+                <span>OK</span>
+              </button>
+              <button class="dpad-btn dpad-right" onclick="sendKey('RIGHT')" title="Right">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <button class="dpad-btn dpad-down" onclick="sendKey('DOWN')" title="Down">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Row 4: Wide Back Button -->
+          <div class="row back-row">
+            <button class="btn btn-pill" onclick="sendKey('BACK')" title="Back">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M9 14l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M5 10h11a4 4 0 1 1 0 8h-1" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Row 5: Volume - / Mouse Toggle / Volume + -->
+          <div class="row bottom-row">
+            <button class="btn btn-round" onclick="sendKey('VOL_DOWN')" title="Volume Down">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button class="btn btn-round btn-mouse" onclick="setMode('trackpad')" title="Touchpad Mouse Mode">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="6" y="3" width="12" height="18" rx="6"/>
+                <line x1="12" y1="7" x2="12" y2="11" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button class="btn btn-round" onclick="sendKey('VOL_UP')" title="Volume Up">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="12" y1="5" x2="12" y2="19" stroke-linecap="round"/>
+                <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+        </main>
+
+        <!-- TOUCHPAD MOUSE VIEW -->
+        <div class="trackpad-chassis hidden" id="trackpadView">
+          <div class="trackpad-area" id="touchpad">
+            <div class="trackpad-hint">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="6" y="3" width="12" height="18" rx="6"/>
+                <line x1="12" y1="7" x2="12" y2="11" stroke-linecap="round"/>
+              </svg>
+              <p>Drag to move pointer</p>
+              <small>Tap for Left Click • 2-finger tap for Menu</small>
+            </div>
+            <div class="scroll-strip" id="scrollStrip">
+              <span>▲<br>S<br>C<br>R<br>O<br>L<br>L<br>▼</span>
+            </div>
+          </div>
+          <div class="mouse-actions">
+            <button class="btn mouse-click-btn" onclick="sendMouseClick('left')">Left Click</button>
+            <button class="btn mouse-click-btn btn-secondary" onclick="sendMouseClick('right')">Right Click (Menu)</button>
+          </div>
+        </div>
+
+        <!-- QUICK TEXT INPUT BAR -->
+        <section class="keyboard-bar">
+          <form onsubmit="handleSendText(event)" class="text-input-form">
+            <input type="text" id="keyboardInput" placeholder="Type text to send to TV..." autocomplete="off">
+            <button type="submit" class="send-btn">Send</button>
+          </form>
+        </section>
+
+        <!-- QUICK APP LAUNCHERS -->
+        <section class="app-launchers">
+          <span class="launchers-label">Quick Launch:</span>
+          <div class="app-pills">
+            <button class="app-pill" onclick="launchApp('com.google.android.youtube')">YouTube</button>
+            <button class="app-pill" onclick="launchApp('org.smarttube.stable')">SmartTube</button>
+            <button class="app-pill" onclick="launchApp('com.brave.browser')">Brave</button>
+            <button class="app-pill" onclick="launchApp('tv.famelack.tvapp')">TV APP</button>
+            <button class="app-pill" onclick="launchApp('com.mxtech.videoplayer.pro')">MX Player</button>
+            <button class="app-pill" onclick="launchApp('com.android.settings')">Settings</button>
+          </div>
+        </section>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- SETTINGS & AUTO-DISCOVERY MODAL -->
+  <div class="modal-overlay hidden" id="settingsModal" onclick="closeModalOnOverlay(event)">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>AlveeTV Remote Settings</h3>
+        <button class="close-btn" onclick="closeSettingsModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="tvIpInput">TV Box IP Address:</label>
+          <div class="input-with-btn">
+            <input type="text" id="tvIpInput" placeholder="192.168.0.54">
+            <button class="btn-primary" onclick="saveTvIp()">Save</button>
+          </div>
+          <small>AlveeTV Server runs on port 8080</small>
+        </div>
+
+        <div class="form-group">
+          <button class="btn-scan" id="btnScan" onclick="startSubnetScan()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+              <path d="M16 21h5v-5"/>
+            </svg>
+            Auto-Detect TV on Network
+          </button>
+          <div id="scanStatus" class="scan-status-text"></div>
+        </div>
+
+        <div class="form-group toggle-group">
+          <label for="hapticToggle">Haptic Vibration on Tap:</label>
+          <input type="checkbox" id="hapticToggle" onchange="toggleHaptics(event)" checked>
+        </div>
+
+        <div class="direct-link-box">
+          <p><strong>Direct TV Web Address:</strong></p>
+          <a id="modalDirectLink" href="#" target="_blank">http://192.168.0.54:8080</a>
+          <small>Open this in Safari/Chrome on phone to bypass mixed content & prompt local network permission.</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="jmuxer.min.js"></script>
+  <script src="remote.js"></script>
+</body>
+</html>
